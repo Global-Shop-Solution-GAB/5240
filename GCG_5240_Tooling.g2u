@@ -1,0 +1,316 @@
+Program.Sub.ScreenSU.Start
+Gui.RtrSeqTooling..Create
+Gui.RtrSeqTooling..Caption("Router Sequence Tooling")
+Gui.RtrSeqTooling..Size(15360,10695)
+Gui.RtrSeqTooling..MinX(0)
+Gui.RtrSeqTooling..MinY(0)
+Gui.RtrSeqTooling..Position(0,0)
+Gui.RtrSeqTooling..BackColor(-2147483633)
+Gui.RtrSeqTooling..MousePointer(0)
+Gui.RtrSeqTooling..Event(UnLoad,RtrSeqTooling_UnLoad)
+Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.Create(GsGridControl)
+Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.Size(14985,9600)
+Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.Position(105,105)
+Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.Event(CellValueChanged,GsGridControlRtrSeqTooling_CellValueChanged)
+Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.Event(RowCellClick,GsGridControlRtrSeqTooling_RowCellClick)
+Gui.RtrSeqTooling.cmdSave.Create(Button)
+Gui.RtrSeqTooling.cmdSave.Size(855,375)
+Gui.RtrSeqTooling.cmdSave.Position(105,9855)
+Gui.RtrSeqTooling.cmdSave.Caption("Save")
+Gui.RtrSeqTooling.cmdSave.Event(Click,cmdSave_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare(String,"")
+
+	F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+		F.Intrinsic.Control.Case("11210")
+			V.Passed.000201.Set("Tooling")
+			
+		F.Intrinsic.Control.Case("11410")	
+			F.Intrinsic.Control.CallSub(Get_Data)
+			F.Intrinsic.Control.CallSub(Set_Properties)
+			
+			Gui.RtrSeqTooling.cmdSave.Enabled(False)
+			
+			Gui.RtrSeqTooling..Show
+		
+		F.Intrinsic.Control.CaseElse
+			F.Intrinsic.Control.End
+			
+	F.Intrinsic.Control.EndSelect
+	
+	F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+		F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_5240_Tooling.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.CallSub(RtrSeqTooling_Unload)
+	F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.RtrSeqTooling_UnLoad.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare(String,"")
+
+	F.Intrinsic.Control.If(V.ODBC.Con.State,=,1)
+		F.ODBC.Connection!Con.Close
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.End
+	
+	F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+		F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_5240_Tooling.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.RtrSeqTooling_UnLoad.End
+
+Program.Sub.cmdSave_Click.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare(String,"")
+	V.Local.sSql.Declare(String,"")
+	V.Local.i.Declare(Long,0)
+	
+	'V.Passed.Router-Num - Router
+	'V.Passed.Orig-Seq - Router Line
+	
+	F.ODBC.Connection!Con.OpenCompanyConnection
+	
+	'deleting router router line records before saving new steps
+	F.Intrinsic.String.Build("Delete From GCG_5240_Tooling Where Router = '{0}' and Router_Line = '{1}'",V.Passed.Router-Num,V.Passed.Orig-Seq,V.Local.sSql)
+	F.ODBC.Connection!Con.Execute(V.Local.sSql)
+	
+	F.Data.DataView.Create("RtrSeq","Temp",22,"Step = '' or Step is Null","Step")
+	
+	F.Intrinsic.Control.If(V.DataView.RtrSeq!Temp.RowCount--,<>,-1)
+		F.Intrinsic.Control.For(V.Local.i,0,V.DataView.RtrSeq!Temp.RowCount--,1)
+			F.Data.DataTable.DeleteRow("RtrSeq",V.DataView.RtrSeq!Temp(V.Local.i).DataTableIndex)
+		F.Intrinsic.Control.Next(V.Local.i)
+	F.Intrinsic.Control.EndIf
+	
+	F.Data.DataView.Close("RtrSeq","Temp")
+	
+	F.Data.DataTable.AcceptChanges("RtrSeq")
+	
+	F.Data.DataTable.SaveToDB("RtrSeq","con","GCG_5240_Tooling","Router*!*Router_Line*!*Step",256,"Router@!@Router*!*Router_Line@!@Router_Line*!*Step@!@Step*!*Operation@!@Operation*!*Tooling@!@Tooling*!*Station@!@Station*!*Comment@!@Comment")
+	
+	F.ODBC.Connection!Con.Close
+	
+	Gui.RtrSeqTooling.cmdSave.Enabled(False)
+	
+	F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+		F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_5240_Tooling.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.CallSub(RtrSeqTooling_Unload)
+	F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.cmdSave_Click.End
+
+Program.Sub.Get_Data.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare(String,"")
+	V.Local.sSql.Declare(String,"")
+	
+	'V.Passed.Router-Num - Router
+	'V.Passed.Orig-Seq - Router Line
+	
+	F.Intrinsic.String.Build("Select rtrim(Router) as Router, rtrim(Router_Line) as Router_Line, rtrim(Step) as Step, rtrim(Operation) as Operation, rtrim(Tooling) as Tooling, rtrim(Station) as Station, rtrim(Comment) as Comment From GCG_5240_Tooling Where Router = '{0}' and Router_Line = '{1}' Order By Step",V.Passed.Router-Num,V.Passed.Orig-Seq,V.Local.sSql)
+	
+	F.ODBC.Connection!Con.OpenCompanyConnection
+	
+	F.Data.DataTable.CreateFromSQL("RtrSeq","con",V.Local.sSql,True)
+	
+	F.ODBC.Connection!Con.Close
+	
+	F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+		F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_5240_Tooling.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.CallSub(RtrSeqTooling_Unload)
+	F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.Get_Data.End
+
+Program.Sub.Set_Properties.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare(String,"")
+
+	'setting Anchors
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.Anchor(15)
+	Gui.RtrSeqTooling.cmdSave.Anchor(6)
+	
+	'adding delete column to grid
+	F.Data.DataTable.AddColumn("RtrSeq","Delete","String")
+	
+	'adding datatable to grid
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.AddGridviewFromDatatable("GRtrSeq","RtrSeq")
+	
+	'setting gridview properties
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetGridviewProperty("GRtrSeq","Enableappearanceoddrow",True)
+'	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetGridviewProperty("GRtrSeq","Editable",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetGridviewProperty("GRtrSeq","AllowAddRows",True)
+'	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetGridviewProperty("GRtrSeq","AllowDeleteRows",True)
+	
+	'setting column properties
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router","Visible",False)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router_Line","Visible",False)
+	
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Delete","Caption"," ")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.ColumnEdit("GRtrSeq","Delete","EditorButton","Delete")
+	
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router","ReadOnly",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router","AllowEdit",False)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router_Line","ReadOnly",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router_Line","AllowEdit",False)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Step","ReadOnly",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Step","AllowEdit",False)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Operation","ReadOnly",False)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Operation","AllowEdit",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Tooling","ReadOnly",False)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Tooling","AllowEdit",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Station","ReadOnly",False)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Station","AllowEdit",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Comment","ReadOnly",False)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Comment","AllowEdit",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Delete","ReadOnly",True)
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Delete","AllowEdit",False)
+	
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router","HeaderBackColor","Green")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router","HeaderForeColor","White")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router_Line","HeaderBackColor","Green")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Router_Line","HeaderForeColor","White")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Step","HeaderBackColor","Green")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Step","HeaderForeColor","White")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Operation","HeaderBackColor","Green")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Operation","HeaderForeColor","White")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Tooling","HeaderBackColor","Green")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Tooling","HeaderForeColor","White")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Station","HeaderBackColor","Green")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Station","HeaderForeColor","White")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Comment","HeaderBackColor","Green")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Comment","HeaderForeColor","White")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Delete","HeaderBackColor","Green")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Delete","HeaderForeColor","White")
+	
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Step","MaxLength","2")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Operation","MaxLength","35")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Tooling","MaxLength","200")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Station","MaxLength","5")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Comment","MaxLength","80")
+	
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Delete","Width","50")
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SetColumnProperty("GRtrSeq","Delete","MaxWidth","50")
+	
+	Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.MainView("GRtrSeq")
+	
+	F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+		F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_5240_Tooling.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.CallSub(RtrSeqTooling_Unload)
+	F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.Set_Properties.End
+
+Program.Sub.GsGridControlRtrSeqTooling_CellValueChanged.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare(String,"")
+	V.Local.iRow.Declare(Long,0)
+	V.Local.i.Declare(Long,0)
+	V.Local.iCol.Declare(Long,-1)
+	V.Local.sCol.Declare(String,"Router,Router_Line,Step,Operation,Tooling,Station,Comment")
+	
+	Gui.RtrSeqTooling.cmdSave.Enabled(True)
+	'V.Passed.Router-Num - Router
+	'V.Passed.Orig-Seq - Router Line
+	'setting step router and router line
+	F.Intrinsic.Control.If(V.Args.RowIndex,=,-1)
+		F.Intrinsic.Math.Add(V.DataTable.RtrSeq.RowCount,1,V.Local.iRow)
+		Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.ResumeLayout()
+		F.Data.DataTable.SetValue("RtrSeq",V.DataTable.RtrSeq.RowCount--,"Step",V.Local.iRow,"Router",V.Passed.Router-Num,"Router_Line",V.Passed.Orig-Seq)
+		F.Intrinsic.String.Split(V.Local.sCol,",",V.Local.sCol)
+		F.Intrinsic.Control.For(V.Local.i,0,V.Local.sCol.UBound,1)
+			F.Intrinsic.Control.If(V.Local.sCol(V.Local.i),=,V.Args.Column)
+				V.Local.iCol.Set(V.Local.i)
+				F.Intrinsic.Control.ExitFor(V.Local.i)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.Next(V.Local.i)
+		F.Intrinsic.Control.If(V.Local.iCol,=,-1)
+			Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.FocusCell("GRtrSeq",0,3)
+		F.Intrinsic.Control.Else
+			Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.FocusCell("GRtrSeq",V.DataTable.RtrSeq.RowCount--,V.Local.iCol)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Else
+		F.Data.DataView.Create("RtrSeq","Temp",22,"Step <> ''","Step")
+		F.Intrinsic.Control.If(V.DataView.RtrSeq!Temp.RowCount--,<>,-1)
+			F.Intrinsic.Math.Add(V.Args.RowIndex,1,V.Local.iRow)
+			F.Data.DataTable.SetValue("RtrSeq",V.Args.RowIndex,"Step",V.Local.iRow,"Router",V.Passed.Router-Num,"Router_Line",V.Passed.Orig-Seq)
+		F.Intrinsic.Control.EndIf
+		F.Data.DataView.Close("RtrSeq","Temp")
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+		F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_5240_Tooling.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.CallSub(RtrSeqTooling_Unload)
+	F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.GsGridControlRtrSeqTooling_CellValueChanged.End
+
+Program.Sub.GsGridControlRtrSeqTooling_RowCellClick.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare(String,"")
+	V.Local.i.Declare(Long,0)
+	V.Local.iRow.Declare(Long,0)
+	
+	'deleting record and renumbering the steps
+	F.Intrinsic.Control.If(V.Args.Column,=,"Delete")
+		Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.SuspendLayout()
+		F.Data.DataTable.DeleteRow("RtrSeq",V.Args.RowIndex)
+		F.Data.DataTable.AcceptChanges("RtrSeq")
+		
+		F.Data.DataView.Create("RtrSeq","Temp",22,"Step <> '' ","Step")
+		
+		F.Intrinsic.Control.For(V.Local.i,0,V.DataView.RtrSeq!Temp.RowCount--,1)
+			F.Intrinsic.Math.Add(V.Local.i,1,V.Local.iRow)
+			F.Data.DataView.SetValue("RtrSeq","Temp",V.Local.i,"Step",V.Local.iRow)
+		F.Intrinsic.Control.Next(V.Local.i)
+		
+		F.Data.DataView.Close("RtrSeq","Temp")
+		
+		Gui.RtrSeqTooling.GsGridControlRtrSeqTooling.ResumeLayout()
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+		F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_5240_Tooling.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.CallSub(RtrSeqTooling_Unload)
+	F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.GsGridControlRtrSeqTooling_RowCellClick.End
+
+
